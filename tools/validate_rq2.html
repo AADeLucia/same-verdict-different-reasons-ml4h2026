@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RQ2 Validation</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f5f5f5;
+    --surface: #ffffff;
+    --border: #d0d0d0;
+    --accent: #2563eb;
+    --accent-light: #eff6ff;
+    --muted: #f8f8f8;
+    --muted-border: #e8e8e8;
+    --text: #1a1a1a;
+    --text-secondary: #555;
+    --red: #dc2626;
+    --red-bg: #fef2f2;
+    --green: #16a34a;
+    --green-bg: #f0fdf4;
+    --yellow: #b45309;
+    --yellow-bg: #fefce8;
+    --radius: 6px;
+    --mono: 'Menlo', 'Consolas', 'Liberation Mono', monospace;
+  }
+
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Header ─────────────────────────────────────────── */
+  #header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  #header-row1 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  #header h1 { font-size: 15px; font-weight: 600; margin-right: 6px; }
+
+  button, select, input[type="file"]::file-selector-button {
+    font-family: inherit; font-size: 13px; cursor: pointer;
+  }
+  .btn {
+    padding: 5px 12px; border-radius: var(--radius);
+    border: 1px solid var(--border); background: var(--surface);
+    color: var(--text); transition: background 0.1s;
+  }
+  .btn:hover { background: var(--muted); }
+  .btn:disabled { opacity: 0.4; cursor: default; }
+  .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+  .btn-primary:hover { background: #1d4ed8; }
+
+  select {
+    padding: 5px 8px; border-radius: var(--radius);
+    border: 1px solid var(--border); background: var(--surface);
+  }
+  select.annotator-select {
+    font-weight: 600; border-color: var(--accent); color: var(--accent);
+    background: var(--accent-light);
+  }
+
+  #file-input { display: none; }
+
+  #header-row2 { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  #nav-info { font-size: 13px; color: var(--text-secondary); min-width: 180px; }
+  #progress-bar-wrap {
+    flex: 1; height: 8px; background: var(--muted-border);
+    border-radius: 99px; overflow: hidden; min-width: 120px; max-width: 300px;
+  }
+  #progress-bar { height: 100%; background: var(--accent); transition: width 0.2s; border-radius: 99px; }
+  #progress-text { font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
+
+  /* category badges */
+  .cat-badge {
+    display: inline-block; padding: 1px 7px; border-radius: 99px;
+    font-size: 11px; font-weight: 700; margin-left: 4px; letter-spacing: 0.03em;
+  }
+  .cat-TP       { background: #d1fae5; color: #065f46; }
+  .cat-TN       { background: #dbeafe; color: #1e40af; }
+  .cat-FP       { background: #fee2e2; color: #991b1b; }
+  .cat-FN       { background: #fef3c7; color: #92400e; }
+  .cat-Agrees   { background: #e0e7ff; color: #3730a3; }
+  .cat-Disagrees{ background: #fce7f3; color: #9d174d; }
+
+  .class-badge {
+    display: inline-block; padding: 3px 10px; border-radius: 99px;
+    font-size: 13px; font-weight: 700; font-family: var(--mono);
+    background: #1e293b; color: #f8fafc; letter-spacing: 0.04em;
+  }
+
+  /* ── Main layout ─────────────────────────────────────── */
+  #main { display: flex; flex: 1; overflow: hidden; }
+
+  /* ── ID list ─────────────────────────────────────────── */
+  #id-list-panel {
+    width: 180px; flex-shrink: 0; background: var(--muted);
+    border-right: 1px solid var(--border); overflow-y: auto;
+    display: flex; flex-direction: column;
+  }
+  #id-list-panel .id-list-header {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--text-secondary);
+    padding: 8px 10px 4px; flex-shrink: 0; border-bottom: 1px solid var(--border);
+  }
+  #id-list-inner { overflow-y: auto; flex: 1; }
+  .id-list-item {
+    padding: 5px 10px; font-size: 11px; font-family: var(--mono);
+    cursor: pointer; border-bottom: 1px solid var(--muted-border);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    color: var(--text-secondary);
+  }
+  .id-list-item:hover { background: var(--border); }
+  .id-list-item.active { background: var(--accent-light); color: var(--accent); font-weight: 600; }
+  .id-list-item.annotated { color: var(--green); }
+  .id-list-item.annotated.active { background: var(--accent-light); }
+
+  /* ── Left panel ──────────────────────────────────────── */
+  #left-panel {
+    flex: 1 1 0; display: flex; flex-direction: column;
+    overflow-y: auto; padding: 16px; gap: 14px;
+    border-right: 1px solid var(--border); background: var(--surface);
+  }
+  .panel-section { display: flex; flex-direction: column; gap: 6px; }
+  .section-label {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--text-secondary);
+  }
+  .meta-row { font-size: 12px; color: var(--text-secondary); display: flex; gap: 12px; flex-wrap: wrap; }
+  .meta-row span { white-space: nowrap; }
+  .meta-row strong { color: var(--text); }
+
+  .md-block {
+    font-size: 13px; line-height: 1.6; word-break: break-word;
+    background: var(--muted); border: 1px solid var(--muted-border);
+    border-radius: var(--radius); padding: 10px 14px;
+    max-height: 260px; overflow-y: auto;
+  }
+  .md-block p  { margin-bottom: 6px; }
+  .md-block p:last-child { margin-bottom: 0; }
+  .md-block ul, .md-block ol { padding-left: 20px; margin-bottom: 6px; }
+  .md-block li { margin-bottom: 3px; }
+  .md-block strong { font-weight: 700; }
+  .md-block em { font-style: italic; }
+
+  .judgments-row { display: flex; gap: 12px; align-items: flex-start; }
+  .judgment-block {
+    flex: 1; background: var(--muted); border: 1px solid var(--muted-border);
+    border-radius: var(--radius); padding: 10px; font-size: 13px; line-height: 1.5;
+  }
+  .judgment-verdict { font-weight: 600; margin-bottom: 4px; }
+  .judgment-expl {
+    font-family: var(--mono); font-size: 12px; line-height: 1.5;
+    white-space: pre-wrap; color: var(--text-secondary);
+    max-height: 120px; overflow-y: auto;
+  }
+
+  /* ── LLM analysis (prominent) ─────────────────────────── */
+  #llm-panel {
+    background: #f0f4ff; border: 1px solid #bfcfff;
+    border-radius: var(--radius); padding: 14px; display: flex;
+    flex-direction: column; gap: 12px;
+  }
+  #llm-panel-header { display: flex; align-items: center; gap: 10px; }
+  #llm-panel-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #3730a3; }
+
+  .llm-field { display: flex; flex-direction: column; gap: 3px; }
+  .llm-field-label {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.07em; color: var(--text-secondary);
+  }
+  .llm-field-val {
+    font-family: var(--mono); font-size: 12px; line-height: 1.5;
+    white-space: pre-wrap; word-break: break-word;
+    background: var(--surface); border: 1px solid var(--muted-border);
+    border-radius: 4px; padding: 6px 8px;
+  }
+
+  hr.divider { border: none; border-top: 2px solid var(--border); margin: 4px 0; }
+
+  /* ── Right panel ─────────────────────────────────────── */
+  #right-panel {
+    width: 320px; flex-shrink: 0; display: flex; flex-direction: column;
+    overflow-y: auto; background: var(--surface);
+  }
+  #annotation-panel { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+
+  .ann-section { display: flex; flex-direction: column; gap: 6px; }
+  .ann-label { font-size: 12px; font-weight: 600; color: var(--text); }
+  .ann-sublabel { font-size: 11px; color: var(--text-secondary); line-height: 1.4; }
+
+  .verdict-group { display: flex; flex-direction: column; gap: 6px; }
+  .verdict-group label {
+    display: flex; align-items: center; gap: 8px; font-size: 14px;
+    cursor: pointer; padding: 7px 12px; border-radius: var(--radius);
+    border: 1.5px solid var(--border); transition: all 0.1s; font-weight: 500;
+  }
+  .verdict-group input[type="radio"] { accent-color: var(--accent); width: 15px; height: 15px; flex-shrink: 0; }
+  .verdict-group label:has(input:checked) {
+    border-width: 2px; font-weight: 700;
+  }
+  .verdict-group label.lbl-yes:has(input:checked)       { background: var(--green-bg); border-color: var(--green); color: var(--green); }
+  .verdict-group label.lbl-no:has(input:checked)        { background: var(--red-bg);   border-color: var(--red);   color: var(--red);   }
+  .verdict-group label.lbl-uncertain:has(input:checked) { background: var(--yellow-bg);border-color: var(--yellow);color: var(--yellow);}
+
+  #notes-input {
+    width: 100%; min-height: 80px; padding: 7px 9px;
+    border-radius: var(--radius); border: 1px solid var(--border);
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.5; resize: vertical;
+  }
+  #notes-input:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
+
+  /* ── Blind mode ──────────────────────────────────────── */
+  body.blind #right-panel { width: 400px; }
+  body.blind .judgment-expl { max-height: 320px; }
+  .verdict-group label.blind-opt { align-items: flex-start; font-size: 13px; font-weight: 400; }
+  .verdict-group label.blind-opt input[type="radio"] { margin-top: 2px; }
+  .verdict-group label.blind-opt:has(input:checked) {
+    background: var(--accent-light); border-color: var(--accent); font-weight: 400;
+  }
+  .blind-opt .opt-body { display: flex; flex-direction: column; gap: 3px; }
+  .blind-opt .opt-title { font-weight: 600; color: var(--text); }
+  .blind-opt .opt-key { font-family: var(--mono); font-size: 11px; color: var(--text-secondary); margin-right: 4px; }
+  .blind-opt .opt-desc { font-size: 11.5px; line-height: 1.45; color: var(--text-secondary); }
+  .flag-label { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+  .flag-label input { width: 15px; height: 15px; accent-color: var(--red); }
+
+  /* ── Highlighting ────────────────────────────────────── */
+  mark.hl { background: #fde047; color: inherit; border-radius: 2px; cursor: pointer; }
+  mark.hl:hover { background: #facc15; }
+  #hl-toggle.on { background: #fef9c3; border-color: #ca8a04; font-weight: 600; }
+
+  #save-btn { width: 100%; padding: 9px; font-size: 14px; }
+  .saved-indicator { text-align: center; font-size: 12px; color: var(--green); display: none; }
+
+  /* ── Empty state ─────────────────────────────────────── */
+  #empty-state {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; flex: 1; gap: 16px;
+    color: var(--text-secondary); text-align: center; padding: 40px;
+  }
+  #empty-state .big-icon { font-size: 48px; }
+  #empty-state p { font-size: 14px; line-height: 1.6; max-width: 420px; }
+  #empty-state code {
+    background: var(--muted); border: 1px solid var(--border);
+    border-radius: 4px; padding: 1px 6px; font-family: var(--mono); font-size: 12px;
+  }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div id="header">
+  <div id="header-row1">
+    <h1 id="app-title">RQ2 Validation</h1>
+    <span id="annotator-badge" style="display:none;padding:2px 10px;border-radius:99px;font-size:12px;font-weight:700;background:#e0e7ff;color:#3730a3;letter-spacing:0.03em"></span>
+    <input type="file" id="file-input" accept=".jsonl">
+    <button class="btn" id="load-btn" onclick="document.getElementById('file-input').click()">📂 Load JSONL</button>
+    <button class="btn" id="export-btn" onclick="downloadJSONL()" disabled>💾 Export</button>
+    <label id="cat-filter-label" style="font-size:13px;color:var(--text-secondary)">Category:</label>
+    <select id="cat-filter" onchange="applyFilter()" disabled>
+      <option value="all">All categories</option>
+      <option value="TP">TP</option>
+      <option value="TN">TN</option>
+      <option value="FP">FP</option>
+      <option value="FN">FN</option>
+      <option value="Agrees">Agrees</option>
+      <option value="Disagrees">Disagrees</option>
+    </select>
+    <label id="class-filter-label" style="font-size:13px;color:var(--text-secondary)">Label:</label>
+    <select id="class-filter" onchange="applyFilter()" disabled>
+      <option value="all">All labels</option>
+    </select>
+    <label style="font-size:13px;color:var(--text-secondary)">Show:</label>
+    <select id="done-filter" onchange="applyFilter()" disabled>
+      <option value="all">All items</option>
+      <option value="todo">Not yet validated</option>
+      <option value="done">Validated</option>
+    </select>
+  </div>
+  <div id="header-row2">
+    <div id="nav-info">Load a file to begin</div>
+    <button class="btn" id="prev-btn" onclick="navigate(-1)" disabled>← Prev</button>
+    <button class="btn" id="next-btn" onclick="saveAndNext()" disabled>Save &amp; Next →</button>
+    <div id="progress-bar-wrap" style="display:none">
+      <div id="progress-bar" style="width:0%"></div>
+    </div>
+    <div id="progress-text" style="display:none"></div>
+    <button class="btn" id="hl-toggle" onclick="toggleHighlighter()"
+            title="On: selecting text highlights it. Off: select text and press H. Click a highlight to remove it.">🖍 Highlighter</button>
+    <button class="btn" id="hl-clear" onclick="clearHighlights()" title="Remove all highlights on this item">Clear highlights</button>
+  </div>
+</div>
+
+<!-- Main -->
+<div id="main">
+  <!-- Empty state -->
+  <div id="empty-state">
+    <div class="big-icon">✅</div>
+    <p>Load your <code>rq2_qualitative_validation_annotatorN.jsonl</code> file.<br>
+    Your annotator ID is detected automatically from the filename.<br>
+    Your progress is saved automatically in <strong>localStorage</strong> and restored on reload.</p>
+    <button class="btn btn-primary" style="padding:8px 20px"
+            onclick="document.getElementById('file-input').click()">📂 Choose file…</button>
+  </div>
+
+  <!-- ID list -->
+  <div id="id-list-panel" style="display:none">
+    <div class="id-list-header">Items</div>
+    <div id="id-list-inner"></div>
+  </div>
+
+  <!-- Left panel -->
+  <div id="left-panel" style="display:none">
+
+    <div class="panel-section">
+      <div class="section-label">Metadata</div>
+      <div class="meta-row" id="meta-row"></div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-label">Question</div>
+      <div class="md-block" id="question-text"></div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-label">Answer</div>
+      <div class="md-block" id="answer-text"></div>
+    </div>
+
+    <hr class="divider">
+
+    <div class="judgments-row">
+      <div class="judgment-block">
+        <div class="section-label" style="margin-bottom:5px" id="human-judgment-title">Human (Clinician)</div>
+        <div class="judgment-verdict" id="human-verdict"></div>
+        <div class="judgment-expl" id="human-expl"></div>
+      </div>
+      <div class="judgment-block">
+        <div class="section-label" style="margin-bottom:5px">LLM Judge</div>
+        <div class="judgment-verdict" id="model-verdict"></div>
+        <div class="judgment-expl" id="model-expl"></div>
+      </div>
+    </div>
+
+    <hr class="divider" id="llm-divider">
+
+    <!-- LLM Analysis — prominent -->
+    <div id="llm-panel">
+      <div id="llm-panel-header">
+        <div id="llm-panel-title">LLM Analysis</div>
+        <span id="assigned-class-badge"></span>
+      </div>
+      <div id="llm-fields"></div>
+    </div>
+
+  </div>
+
+  <!-- Right panel: annotation form -->
+  <div id="right-panel" style="display:none">
+    <div id="annotation-panel">
+      <div class="section-label" id="annotation-title">Your Validation</div>
+
+      <!-- Blind mode form (options built in JS per item_type) -->
+      <div id="blind-form" style="display:none;flex-direction:column;gap:16px">
+        <div class="ann-section">
+          <div class="ann-label" id="blind-question"></div>
+          <div class="ann-sublabel" id="blind-reminder"></div>
+          <div class="verdict-group" id="blind-options" style="margin-top:6px"></div>
+        </div>
+        <div class="ann-section">
+          <label class="flag-label">
+            <input type="checkbox" id="blind-flag"> Flag for review
+          </label>
+        </div>
+      </div>
+
+      <!-- Confirm mode form -->
+      <div class="ann-section" id="confirm-form">
+        <div class="ann-label">Is the LLM's assigned label correct?</div>
+        <div class="ann-sublabel" id="label-description"></div>
+        <div class="verdict-group" style="margin-top:6px">
+          <label class="lbl-yes">
+            <input type="radio" name="human_label_correct" value="Yes"> ✓ Yes — label is correct
+          </label>
+          <label class="lbl-no">
+            <input type="radio" name="human_label_correct" value="No"> ✗ No — label is wrong
+          </label>
+          <label class="lbl-uncertain">
+            <input type="radio" name="human_label_correct" value="Uncertain"> ? Uncertain
+          </label>
+        </div>
+      </div>
+
+      <div class="ann-section">
+        <div class="ann-label" id="notes-label">Notes</div>
+        <textarea id="notes-input" placeholder="Why is the label wrong? What would the correct label be? Any other observations…"></textarea>
+      </div>
+
+      <button class="btn btn-primary" id="save-btn" onclick="saveAndNext()">Save &amp; Next →</button>
+      <div class="saved-indicator" id="saved-indicator">✓ Saved</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// State
+// ─────────────────────────────────────────────────────────────────────────────
+let allRows = [];
+let filteredIndices = [];
+let filteredPos = 0;
+let stateKey = '';
+let loadedFilename = '';
+let annotatorId = '';
+let blindMode = false;
+
+// ── Blind mode: annotation questions per item_type ──────────────────────────
+// tp_alignment definitions copied verbatim from the classifier codebook
+// (code/medscore_completeness/scripts/prompt1_same_verdict.md, Step 4).
+const BLIND_ITEM_TYPES = {
+  tp_alignment: {
+    question: 'Does the LLM Judge\'s reasoning identify the clinician\'s concern(s)?',
+    reminder: 'Alignment measures recall of the clinician\'s concerns; extra concerns raised by the judge do not reduce alignment.',
+    options: [
+      { value: 'Yes', title: 'Yes',
+        desc: `The model identified ALL (or substantially all) of the clinician's concerns. The model may also flag additional omissions the clinician did not — this is still "Yes" as long as the clinician's concerns are covered. For TN rows where the clinician found no omission, "Yes" means the model also found no omission (or only flagged minor gaps it deemed non-critical).` },
+      { value: 'Partially', title: 'Partially',
+        desc: `The model identified SOME but not all of the clinician's concerns. At least one clinician-identified omission is captured by the model, but at least one other is missing from the model's explanation.` },
+      { value: 'No', title: 'No',
+        desc: `The model identified NONE of the clinician's concerns. Whatever the model flagged, it does not overlap with what the clinician identified. For TN rows, "No" means the clinician found no omission but the model flagged specific gaps (even if deemed non-critical), OR the clinician flagged a minor omission that the model did not detect at all.` },
+    ],
+  },
+  fp_adjudication: {
+    question: 'Is the LLM Judge\'s main flagged omission clinically warranted for this patient-facing question?',
+    reminder: '',
+    options: [
+      { value: 'warranted', title: 'Warranted – important',
+        desc: 'a clinically important omission the response should have included' },
+      { value: 'supplementary', title: 'Reasonable but supplementary',
+        desc: 'relevant, but nice-to-have for a patient-facing answer' },
+      { value: 'not_warranted', title: 'Not warranted',
+        desc: 'out of scope for the question, clinically incorrect, or not applicable' },
+      { value: 'already_addressed', title: 'Already addressed',
+        desc: 'the response already covers this concern' },
+    ],
+  },
+};
+
+function detectBlindMode(rows) {
+  return !rows.some(r => 'assigned_class' in r) && rows.some(r => 'item_type' in r);
+}
+
+function isDone(r) {
+  return blindMode ? !!r.human_label : !!r.human_label_correct;
+}
+
+function currentRow() {
+  if (!filteredIndices.length) return null;
+  return allRows[filteredIndices[filteredPos]];
+}
+
+// Show/hide mode-specific UI. Called on every file load so switching
+// between a blind file and a confirm file in one session works.
+function setModeUI() {
+  const show = (id, on, disp = '') => { document.getElementById(id).style.display = on ? disp : 'none'; };
+  document.body.classList.toggle('blind', blindMode);
+  show('cat-filter-label',   !blindMode);
+  show('cat-filter',         !blindMode);
+  show('class-filter-label', !blindMode);
+  show('class-filter',       !blindMode);
+  show('llm-divider',        !blindMode);
+  show('llm-panel',          !blindMode);
+  show('confirm-form',       !blindMode);
+  show('blind-form',          blindMode, 'flex');
+  document.getElementById('app-title').textContent = blindMode ? 'RQ2 Annotation' : 'RQ2 Validation';
+  document.title = blindMode ? 'RQ2 Annotation' : 'RQ2 Validation';
+  document.getElementById('annotation-title').textContent = blindMode ? 'Your Annotation' : 'Your Validation';
+  document.getElementById('human-judgment-title').textContent = blindMode ? 'Clinician' : 'Human (Clinician)';
+  document.getElementById('notes-label').textContent = blindMode ? 'Notes (optional)' : 'Notes';
+  document.getElementById('notes-input').placeholder = blindMode
+    ? 'Optional: reasoning, uncertainty, anything unusual about this item…'
+    : 'Why is the label wrong? What would the correct label be? Any other observations…';
+  if (blindMode) {
+    document.getElementById('cat-filter').value   = 'all';
+    document.getElementById('class-filter').value = 'all';
+  }
+}
+
+// Record a change to the current blind item and autosave.
+function touchBlindRow(row) {
+  row.annotated_at = new Date().toISOString();
+  row.annotator    = annotatorId;
+  saveState();
+  updateProgress();
+  rebuildIdList();
+}
+
+function setBlindLabel(value) {
+  const row = currentRow();
+  if (!row) return;
+  row.human_label = value;
+  document.querySelectorAll('input[name="human_label"]').forEach(r => { r.checked = (r.value === value); });
+  touchBlindRow(row);
+}
+
+function pickBlindOption(i) {
+  const row = currentRow();
+  if (!row) return;
+  const spec = BLIND_ITEM_TYPES[row.item_type];
+  if (!spec || i < 0 || i >= spec.options.length) return;
+  setBlindLabel(spec.options[i].value);
+}
+
+function renderBlindForm(row) {
+  const spec = BLIND_ITEM_TYPES[row.item_type];
+  const opts = document.getElementById('blind-options');
+  opts.innerHTML = '';
+  if (!spec) {
+    document.getElementById('blind-question').textContent = `Unknown item_type: ${row.item_type}`;
+    document.getElementById('blind-reminder').textContent = '';
+  } else {
+    document.getElementById('blind-question').textContent = spec.question;
+    document.getElementById('blind-reminder').textContent = spec.reminder;
+    spec.options.forEach((o, i) => {
+      const lbl = document.createElement('label');
+      lbl.className = 'blind-opt';
+      const inp = document.createElement('input');
+      inp.type = 'radio'; inp.name = 'human_label'; inp.value = o.value;
+      inp.checked = (row.human_label === o.value);
+      inp.addEventListener('change', () => { if (inp.checked) setBlindLabel(o.value); });
+      const body = document.createElement('div');
+      body.className = 'opt-body';
+      const title = document.createElement('div');
+      title.className = 'opt-title';
+      title.innerHTML = `<span class="opt-key">[${i + 1}]</span>${esc(o.title)}`;
+      const desc = document.createElement('div');
+      desc.className = 'opt-desc';
+      desc.textContent = o.desc;
+      body.appendChild(title); body.appendChild(desc);
+      lbl.appendChild(inp); lbl.appendChild(body);
+      opts.appendChild(lbl);
+    });
+  }
+  document.getElementById('blind-flag').checked = !!row.human_flagged;
+  document.getElementById('notes-input').value  = row.human_notes || '';
+}
+
+function renderBlindRow(row) {
+  document.getElementById('meta-row').innerHTML = `
+    <span>Item: <strong style="font-family:var(--mono)">${esc(row.item_id || '—')}</strong></span>
+    <span>Type: <strong>${esc(row.item_type || '—')}</strong></span>
+  `;
+  document.getElementById('question-text').innerHTML = renderMarkdown(row.Question || '');
+  document.getElementById('answer-text').innerHTML   = renderMarkdown(row.Answer   || '');
+  document.getElementById('human-verdict').textContent = row.clinician_verdict     || '—';
+  document.getElementById('human-expl').textContent    = row.clinician_explanation || '';
+  document.getElementById('model-verdict').textContent = row.judge_verdict         || '—';
+  document.getElementById('model-expl').textContent    = row.judge_explanation     || '';
+  renderBlindForm(row);
+  applyHighlights();
+}
+
+const LABEL_DESCRIPTIONS = {
+  // same_verdict
+  'Yes':       'Both parties identified the same omissions / criteria.',
+  'Partially': 'Partial overlap — some shared, some divergent reasoning.',
+  'No':        'Different omissions / criteria cited entirely.',
+  // different_verdict FP
+  'FP01': 'Over-flags minor gaps that don\'t warrant incomplete verdict.',
+  'FP02': 'Demands clinical depth beyond patient-facing scope.',
+  'FP03': 'Misapplies safety-netting criteria.',
+  'FP04': 'Misinterprets the question intent.',
+  'FP05': 'Other false-positive pattern.',
+  // different_verdict FN
+  'FN01': 'Fails to detect the omission entirely.',
+  'FN02': 'Underweights severity of the missing information.',
+  'FN03': 'Misframes clinical significance.',
+  'FN04': 'Clinician annotation arguably out of scope.',
+  'FN05': 'Over-credits a generic "consult your doctor" statement.',
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// JSONL helpers
+// ─────────────────────────────────────────────────────────────────────────────
+function parseJSONL(text) {
+  return text.split('\n').map(l => l.trim()).filter(l => l.length)
+    .map((l, i) => { try { return JSON.parse(l); } catch(e) { console.warn(`Line ${i+1}:`, e); return null; } })
+    .filter(r => r !== null);
+}
+function serializeJSONL(arr) { return arr.map(r => JSON.stringify(r)).join('\n') + '\n'; }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// localStorage
+// ─────────────────────────────────────────────────────────────────────────────
+function buildStateKey(filename, rowCount, annotator) {
+  if (blindMode) return `rq2_blind::${filename}::${rowCount}::${annotator}`;
+  return `rq2_validate::${filename}::${rowCount}::${annotator}`;
+}
+
+function saveState() {
+  if (!stateKey) return;
+  if (blindMode) {
+    const snap = {
+      filteredPos,
+      doneFilter:  document.getElementById('done-filter').value,
+      annotations: allRows.map(r => ({
+        item_id:       r.item_id ?? null,
+        human_label:   r.human_label   ?? null,
+        human_notes:   r.human_notes   ?? '',
+        human_flagged: !!r.human_flagged,
+        annotated_at:  r.annotated_at  ?? null,
+      })),
+    };
+    try { localStorage.setItem(stateKey, JSON.stringify(snap)); }
+    catch(e) { console.warn('localStorage save failed:', e); }
+    return;
+  }
+  const snap = {
+    filteredPos,
+    catFilter:   document.getElementById('cat-filter').value,
+    classFilter: document.getElementById('class-filter').value,
+    doneFilter:  document.getElementById('done-filter').value,
+    annotations: allRows.map(r => ({
+      human_label_correct: r.human_label_correct ?? '',
+      human_notes:         r.human_notes         ?? '',
+    })),
+  };
+  try { localStorage.setItem(stateKey, JSON.stringify(snap)); }
+  catch(e) { console.warn('localStorage save failed:', e); }
+}
+
+function loadState() {
+  if (!stateKey) return false;
+  const raw = localStorage.getItem(stateKey);
+  if (!raw) return false;
+  try {
+    const snap = JSON.parse(raw);
+    if (blindMode) {
+      if (Array.isArray(snap.annotations) && snap.annotations.length === allRows.length) {
+        snap.annotations.forEach((a, i) => {
+          const r = allRows[i];
+          // Skip if row order changed (item_id mismatch)
+          if (a.item_id != null && r.item_id != null && a.item_id !== r.item_id) return;
+          r.human_label   = a.human_label   ?? null;
+          r.human_notes   = a.human_notes   ?? '';
+          r.human_flagged = !!a.human_flagged;
+          r.annotated_at  = a.annotated_at  ?? null;
+          if (r.annotated_at) r.annotator = annotatorId;
+        });
+      }
+      if (snap.doneFilter) document.getElementById('done-filter').value = snap.doneFilter;
+      applyFilter(false);
+      filteredPos = Math.min(snap.filteredPos ?? 0, Math.max(0, filteredIndices.length - 1));
+      return true;
+    }
+    if (Array.isArray(snap.annotations) && snap.annotations.length === allRows.length) {
+      snap.annotations.forEach((a, i) => {
+        allRows[i].human_label_correct = a.human_label_correct ?? '';
+        allRows[i].human_notes         = a.human_notes         ?? '';
+      });
+    }
+    if (snap.catFilter)   document.getElementById('cat-filter').value   = snap.catFilter;
+    if (snap.classFilter) document.getElementById('class-filter').value = snap.classFilter;
+    if (snap.doneFilter)  document.getElementById('done-filter').value  = snap.doneFilter;
+    applyFilter(false);
+    filteredPos = Math.min(snap.filteredPos ?? 0, Math.max(0, filteredIndices.length - 1));
+    return true;
+  } catch(e) { console.warn('localStorage load failed:', e); return false; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// File loading
+// ─────────────────────────────────────────────────────────────────────────────
+document.getElementById('file-input').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  loadedFilename = file.name;
+  const _idMatch = file.name.match(/annotator(\d+)/i);
+  annotatorId = _idMatch ? 'annotator' + _idMatch[1] : file.name.replace(/\.jsonl$/i, '');
+  const _badge = document.getElementById('annotator-badge');
+  _badge.textContent = _idMatch ? 'Annotator ' + _idMatch[1] : annotatorId;
+  _badge.style.display = '';
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    allRows = parseJSONL(ev.target.result);
+    if (!allRows.length) { alert('No valid rows found.'); return; }
+    blindMode = detectBlindMode(allRows);
+    filteredPos = 0;
+    if (blindMode) {
+      // Restores any human_* values present in a previously exported file
+      allRows.forEach(r => {
+        if (r.human_label === undefined || r.human_label === '') r.human_label = null;
+        if (r.human_notes === undefined || r.human_notes === null) r.human_notes = '';
+        r.human_flagged = !!r.human_flagged;
+        if (r.annotated_at === undefined) r.annotated_at = null;
+      });
+    } else {
+      allRows.forEach(r => {
+        if (r.human_label_correct === undefined) r.human_label_correct = '';
+        if (r.human_notes         === undefined) r.human_notes         = '';
+      });
+    }
+    setModeUI();
+    stateKey = buildStateKey(loadedFilename, allRows.length, annotatorId);
+
+    // Populate assigned-class filter
+    const classes = [...new Set(allRows.map(r => r.assigned_class).filter(Boolean))].sort();
+    const cSel = document.getElementById('class-filter');
+    cSel.innerHTML = '<option value="all">All labels</option>';
+    classes.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; cSel.appendChild(o); });
+
+    document.getElementById('empty-state').style.display   = 'none';
+    document.getElementById('id-list-panel').style.display = '';
+    document.getElementById('left-panel').style.display    = '';
+    document.getElementById('right-panel').style.display   = '';
+    document.getElementById('export-btn').disabled         = false;
+    document.getElementById('cat-filter').disabled         = false;
+    document.getElementById('class-filter').disabled       = false;
+    document.getElementById('done-filter').disabled        = false;
+    document.getElementById('progress-bar-wrap').style.display = '';
+    document.getElementById('progress-text').style.display = '';
+
+    const restored = loadState();
+    if (!restored) applyFilter();
+    renderRow();
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Filter
+// ─────────────────────────────────────────────────────────────────────────────
+function applyFilter(resetPos = true) {
+  const catVal   = document.getElementById('cat-filter').value;
+  const classVal = document.getElementById('class-filter').value;
+  const doneVal  = document.getElementById('done-filter').value;
+
+  filteredIndices = allRows.map((r, i) => ({ r, i })).filter(({ r }) => {
+    if (blindMode) {
+      if (doneVal === 'todo' &&  isDone(r)) return false;
+      if (doneVal === 'done' && !isDone(r)) return false;
+      return true;
+    }
+    if (catVal   !== 'all' && r.analysis_category !== catVal)   return false;
+    if (classVal !== 'all' && r.assigned_class    !== classVal) return false;
+    if (doneVal  === 'todo' &&  r.human_label_correct)          return false;
+    if (doneVal  === 'done' && !r.human_label_correct)          return false;
+    return true;
+  }).map(({ i }) => i);
+
+  if (resetPos) filteredPos = 0;
+  rebuildIdList();
+  renderRow();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ID list
+// ─────────────────────────────────────────────────────────────────────────────
+function rebuildIdList() {
+  const inner = document.getElementById('id-list-inner');
+  inner.innerHTML = '';
+  filteredIndices.forEach((rowIdx, pos) => {
+    const r = allRows[rowIdx];
+    const div = document.createElement('div');
+    if (blindMode) {
+      const done = isDone(r);
+      div.className = 'id-list-item' + (pos === filteredPos ? ' active' : '') + (done ? ' annotated' : '');
+      div.textContent = (done ? '✓ ' : '○ ') + String(r.item_id ?? rowIdx);
+      div.title = String(r.item_id ?? rowIdx) + (done ? ' (done)' : ' (not done)');
+      div.onclick = () => { filteredPos = pos; renderRow(); saveState(); };
+      inner.appendChild(div);
+      return;
+    }
+    div.className = 'id-list-item' +
+      (pos === filteredPos ? ' active' : '') +
+      (r.human_label_correct ? ' annotated' : '');
+    div.textContent = (r.assigned_class || r.analysis_category || r.ID || rowIdx).toString().slice(0, 22);
+    div.title = `${r.analysis_category} × ${r.assigned_class || '?'} — ${r.ID || ''}`;
+    div.onclick = () => { filteredPos = pos; renderRow(); saveState(); };
+    inner.appendChild(div);
+  });
+}
+
+function scrollIdListActive() {
+  const inner = document.getElementById('id-list-inner');
+  const active = inner.querySelector('.id-list-item.active');
+  if (active) active.scrollIntoView({ block: 'nearest' });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Rendering
+// ─────────────────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function renderMarkdown(text) {
+  if (!text) return '';
+  let s = String(text);
+  s = s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  s = s.replace(/^- (.+)$/gm, '<li>$1</li>');
+  s = s.replace(/(<li>.*<\/li>\n?)+/g, m => '<ul>' + m + '</ul>');
+  s = s.replace(/\n\n+/g, '</p><p>');
+  return '<p>' + s + '</p>';
+}
+
+function renderRow() {
+  updateProgress();
+  updateNavInfo();
+  if (!filteredIndices.length) { clearPanels(); return; }
+
+  const idx = filteredIndices[filteredPos];
+  const row = allRows[idx];
+
+  if (blindMode) {
+    renderBlindRow(row);
+    rebuildIdList();
+    scrollIdListActive();
+    updateNavButtons();
+    return;
+  }
+
+  // Metadata
+  const cat = row.analysis_category || '?';
+  const cls = row.assigned_class    || '?';
+  const catClass = 'cat-' + cat.replace(/\s+/g,'');
+  document.getElementById('meta-row').innerHTML = `
+    <span>Category: <span class="cat-badge ${catClass}">${esc(cat)}</span></span>
+    <span>Label: <strong>${esc(cls)}</strong></span>
+    <span>Dataset: <strong>${esc(row.Dataset || '—')}</strong></span>
+    <span>Metric: <strong>${esc(row.Metric || '—')}</strong></span>
+    <span>Eval Model: <strong>${esc(row['Eval Model'] || '—')}</strong></span>
+    <span>ID: <strong style="font-family:var(--mono);font-size:11px">${esc((row.ID||'').slice(0,20))}…</strong></span>
+  `;
+
+  // Q&A
+  document.getElementById('question-text').innerHTML = renderMarkdown(row.Question || '');
+  document.getElementById('answer-text').innerHTML   = renderMarkdown(row.Answer   || '');
+
+  // Human & Model judgments
+  document.getElementById('human-verdict').textContent = row['Human Judgment'] || '—';
+  document.getElementById('human-expl').textContent    = row['Explanation of Human Judgment'] || '';
+  document.getElementById('model-verdict').textContent = row['Model Judgment'] || '—';
+  document.getElementById('model-expl').textContent    = row['Explanation of Model Judgment'] || '';
+
+  // LLM Analysis panel
+  document.getElementById('assigned-class-badge').innerHTML =
+    `<span class="class-badge">${esc(cls)}</span>`;
+
+  const desc = LABEL_DESCRIPTIONS[cls] || '';
+  document.getElementById('label-description').textContent = desc;
+
+  const fields = document.getElementById('llm-fields');
+  const pts = row.prompt_type === 'same_verdict';
+  fields.innerHTML = '';
+
+  function addField(label, val) {
+    if (!val) return;
+    const d = document.createElement('div');
+    d.className = 'llm-field';
+    d.innerHTML = `<div class="llm-field-label">${esc(label)}</div>
+                   <div class="llm-field-val">${esc(val)}</div>`;
+    fields.appendChild(d);
+  }
+
+  if (pts) {
+    addField('Omissions Aligned', row.omissions_aligned);
+    addField('Clinician Omissions', row.clinician_omissions);
+    addField('Model Omissions', row.model_omissions);
+  } else {
+    addField('Category', row.category);
+    addField('Clinician Key Concern', row.clinician_omissions);
+    addField('Model Engagement', row.model_omissions);
+  }
+  addField('LLM Explanation', row.llm_explanation);
+
+  // Annotation form
+  document.querySelectorAll('input[name="human_label_correct"]').forEach(r => {
+    r.checked = (r.value === row.human_label_correct);
+  });
+  document.getElementById('notes-input').value = row.human_notes || '';
+  applyHighlights();
+
+  rebuildIdList();
+  scrollIdListActive();
+  updateNavButtons();
+}
+
+function clearPanels() {
+  document.getElementById('meta-row').innerHTML = '<span style="color:var(--text-secondary)">No rows match current filter.</span>';
+  document.getElementById('question-text').innerHTML = '';
+  document.getElementById('answer-text').innerHTML = '';
+  document.getElementById('human-verdict').textContent = '';
+  document.getElementById('human-expl').textContent = '';
+  document.getElementById('model-verdict').textContent = '';
+  document.getElementById('model-expl').textContent = '';
+  document.getElementById('assigned-class-badge').innerHTML = '';
+  document.getElementById('llm-fields').innerHTML = '';
+  document.getElementById('label-description').textContent = '';
+  document.querySelectorAll('input[name="human_label_correct"]').forEach(r => r.checked = false);
+  document.getElementById('notes-input').value = '';
+  document.getElementById('blind-question').textContent = '';
+  document.getElementById('blind-reminder').textContent = '';
+  document.getElementById('blind-options').innerHTML = '';
+  document.getElementById('blind-flag').checked = false;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Progress / nav
+// ─────────────────────────────────────────────────────────────────────────────
+function updateProgress() {
+  const annotated = allRows.filter(isDone).length;
+  const pct = allRows.length ? (annotated / allRows.length * 100).toFixed(0) : 0;
+  document.getElementById('progress-bar').style.width = pct + '%';
+  document.getElementById('progress-text').textContent =
+    `${annotated} / ${allRows.length} ${blindMode ? 'labeled' : 'validated'}`;
+}
+
+function updateNavInfo() {
+  const total = filteredIndices.length;
+  const pos   = total ? filteredPos + 1 : 0;
+  const idx   = total ? filteredIndices[filteredPos] : null;
+  const row   = idx != null ? allRows[idx] : null;
+  if (blindMode) {
+    document.getElementById('nav-info').innerHTML =
+      total ? `Item ${pos} / ${total} <strong style="font-family:var(--mono)">${esc(row?.item_id ?? '')}</strong>` : 'No items';
+    return;
+  }
+  const cat   = row?.analysis_category || '';
+  const cls   = row?.assigned_class    || '';
+  const catClass = 'cat-' + cat.replace(/\s+/g,'');
+  const badge = cat ? `<span class="cat-badge ${catClass}">${esc(cat)}</span>` : '';
+  document.getElementById('nav-info').innerHTML =
+    total ? `Item ${pos} / ${total} ${badge} <strong>${esc(cls)}</strong>` : 'No items';
+}
+
+function updateNavButtons() {
+  document.getElementById('prev-btn').disabled = filteredPos <= 0;
+  document.getElementById('next-btn').disabled = filteredIndices.length === 0;
+}
+
+function navigate(delta) {
+  const newPos = filteredPos + delta;
+  if (newPos < 0 || newPos >= filteredIndices.length) return;
+  filteredPos = newPos;
+  renderRow();
+  saveState();
+}
+
+function saveAndNext() {
+  if (!filteredIndices.length) return;
+  const idx = filteredIndices[filteredPos];
+  const row = allRows[idx];
+  if (blindMode) {
+    // Blind-mode fields autosave on change; just persist position here.
+    saveState();
+  } else {
+    const verdict = document.querySelector('input[name="human_label_correct"]:checked')?.value || '';
+    row.human_label_correct = verdict;
+    row.human_notes         = document.getElementById('notes-input').value.trim();
+    row.annotator           = annotatorId;
+    saveState();
+  }
+  const ind = document.getElementById('saved-indicator');
+  ind.style.display = 'block';
+  setTimeout(() => ind.style.display = 'none', 1000);
+  if (filteredPos < filteredIndices.length - 1) {
+    filteredPos++;
+    renderRow();
+  } else {
+    rebuildIdList();
+    updateProgress();
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Export
+// ─────────────────────────────────────────────────────────────────────────────
+function downloadJSONL() {
+  let exported, stem;
+  if (blindMode) {
+    exported = allRows.map(r => ({
+      ...r,
+      human_label:   r.human_label || null,
+      human_notes:   (r.human_notes || '').trim(),
+      human_flagged: !!r.human_flagged,
+      annotator:     annotatorId,
+      annotated_at:  r.annotated_at || null,
+    }));
+    // Avoid foo_annotated_annotated.jsonl when re-exporting an exported file
+    stem = loadedFilename.replace(/\.jsonl$/i, '').replace(/_annotated$/i, '');
+  } else {
+    exported = allRows.map(r => ({ ...r, annotator: annotatorId }));
+    stem = loadedFilename.replace(/\.jsonl$/i, '');
+  }
+  const blob = new Blob([serializeJSONL(exported)], { type: 'application/jsonl' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = stem + '_annotated.jsonl';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Keyboard nav
+// ─────────────────────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  // Blind mode: 1-4 pick an option (allowed while a radio/checkbox has focus)
+  if (blindMode && /^[1-4]$/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey &&
+      !['TEXTAREA','SELECT'].includes(e.target.tagName) &&
+      !(e.target.tagName === 'INPUT' && !['radio','checkbox'].includes(e.target.type))) {
+    e.preventDefault();
+    pickBlindOption(Number(e.key) - 1);
+    return;
+  }
+  if (['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
+  if ((e.key === 'h' || e.key === 'H') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    if (highlightSelection()) e.preventDefault();
+    return;
+  }
+  if (e.key === 'ArrowLeft')  navigate(-1);
+  if (e.key === 'ArrowRight') saveAndNext();
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Blind mode: autosave notes and flag on change
+// ─────────────────────────────────────────────────────────────────────────────
+document.getElementById('notes-input').addEventListener('input', e => {
+  if (!blindMode) return;
+  const row = currentRow();
+  if (!row) return;
+  row.human_notes = e.target.value;
+  touchBlindRow(row);
+});
+
+document.getElementById('blind-flag').addEventListener('change', e => {
+  if (!blindMode) return;
+  const row = currentRow();
+  if (!row) return;
+  row.human_flagged = e.target.checked;
+  touchBlindRow(row);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Highlighting (reading aid only; kept in localStorage, never exported)
+// Stored as character offsets into each container's text, keyed by item so
+// highlights follow the item across files (e.g. full vs reduced sample).
+// ─────────────────────────────────────────────────────────────────────────────
+const HL_STORE_KEY = 'rq2_highlights';
+const HL_CONTAINERS = ['question-text', 'answer-text', 'human-expl', 'model-expl', 'llm-fields'];
+let highlighterOn = localStorage.getItem('rq2_highlighter_on') !== '0';
+
+function hlItemKey(row) {
+  if (!row) return null;
+  if (row.item_id) return 'item::' + row.item_id;
+  return ['row', row.ID, row.Metric, row['Eval Model'], row.prompt_type].join('::');
+}
+
+function hlLoadAll() {
+  try { return JSON.parse(localStorage.getItem(HL_STORE_KEY) || '{}'); }
+  catch(e) { return {}; }
+}
+
+function hlSaveAll(all) {
+  try { localStorage.setItem(HL_STORE_KEY, JSON.stringify(all)); }
+  catch(e) { console.warn('highlight save failed:', e); }
+}
+
+function hlGet(key) { return hlLoadAll()[key] || {}; }
+
+function hlSet(key, spans) {
+  const all = hlLoadAll();
+  const clean = Object.fromEntries(Object.entries(spans).filter(([, v]) => v.length));
+  if (Object.keys(clean).length) all[key] = clean; else delete all[key];
+  hlSaveAll(all);
+}
+
+function mergeSpans(spans) {
+  const s = spans.slice().sort((a, b) => a[0] - b[0]);
+  const out = [];
+  for (const [a, b] of s) {
+    if (out.length && a <= out[out.length - 1][1]) out[out.length - 1][1] = Math.max(out[out.length - 1][1], b);
+    else out.push([a, b]);
+  }
+  return out;
+}
+
+function textNodes(el) {
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  return nodes;
+}
+
+// Offset of (node, offset) measured in characters from the start of el.
+function charOffset(el, node, offset) {
+  const r = document.createRange();
+  r.selectNodeContents(el);
+  r.setEnd(node, offset);
+  return r.toString().length;
+}
+
+function wrapSpans(el, spans) {
+  if (!spans.length) return;
+  // Collect node slices first so wrapping doesn't disturb the walk.
+  const slices = [];
+  let pos = 0;
+  for (const node of textNodes(el)) {
+    const len = node.data.length;
+    spans.forEach(([a, b], idx) => {
+      const s = Math.max(a, pos), e = Math.min(b, pos + len);
+      if (s < e) slices.push({ node, s: s - pos, e: e - pos, idx });
+    });
+    pos += len;
+  }
+  // Wrap in reverse document order so earlier offsets in a split node stay valid.
+  for (const { node, s, e, idx } of slices.reverse()) {
+    const r = document.createRange();
+    r.setStart(node, s); r.setEnd(node, e);
+    const m = document.createElement('mark');
+    m.className = 'hl'; m.dataset.span = idx;
+    m.title = 'Click to remove highlight';
+    r.surroundContents(m);
+  }
+}
+
+function applyHighlights() {
+  const key = hlItemKey(currentRow());
+  if (!key) return;
+  const spans = hlGet(key);
+  HL_CONTAINERS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && spans[id]) wrapSpans(el, spans[id]);
+  });
+}
+
+// Re-render highlights for the current item without touching other state.
+function refreshHighlights() {
+  HL_CONTAINERS.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.querySelectorAll('mark.hl').forEach(m => m.replaceWith(...m.childNodes));
+    el.normalize();
+  });
+  applyHighlights();
+}
+
+function highlightSelection() {
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed || !sel.rangeCount) return false;
+  const key = hlItemKey(currentRow());
+  if (!key) return false;
+  const range = sel.getRangeAt(0);
+  const spans = hlGet(key);
+  let added = false;
+  HL_CONTAINERS.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el || !range.intersectsNode(el)) return;
+    const inside = (n) => el.contains(n);
+    const a = inside(range.startContainer) ? charOffset(el, range.startContainer, range.startOffset) : 0;
+    const b = inside(range.endContainer)   ? charOffset(el, range.endContainer,   range.endOffset)   : el.textContent.length;
+    if (b <= a) return;
+    spans[id] = mergeSpans([...(spans[id] || []), [a, b]]);
+    added = true;
+  });
+  if (!added) return false;
+  hlSet(key, spans);
+  sel.removeAllRanges();
+  refreshHighlights();
+  return true;
+}
+
+function removeHighlight(mark) {
+  const key = hlItemKey(currentRow());
+  const el = HL_CONTAINERS.map(id => document.getElementById(id)).find(c => c && c.contains(mark));
+  if (!key || !el) return;
+  const spans = hlGet(key);
+  const idx = Number(mark.dataset.span);
+  if (spans[el.id]) spans[el.id].splice(idx, 1);
+  hlSet(key, spans);
+  refreshHighlights();
+}
+
+function clearHighlights() {
+  const key = hlItemKey(currentRow());
+  if (!key) return;
+  hlSet(key, {});
+  refreshHighlights();
+}
+
+function updateHighlighterButton() {
+  const btn = document.getElementById('hl-toggle');
+  btn.classList.toggle('on', highlighterOn);
+  btn.textContent = highlighterOn ? '🖍 Highlighter: on' : '🖍 Highlighter: off (H)';
+}
+
+function toggleHighlighter() {
+  highlighterOn = !highlighterOn;
+  localStorage.setItem('rq2_highlighter_on', highlighterOn ? '1' : '0');
+  updateHighlighterButton();
+}
+
+let hlJustAdded = false;
+document.getElementById('left-panel').addEventListener('mouseup', () => {
+  hlJustAdded = highlighterOn && highlightSelection();
+});
+
+document.getElementById('left-panel').addEventListener('click', e => {
+  if (hlJustAdded) { hlJustAdded = false; return; }
+  const mark = e.target.closest('mark.hl');
+  if (!mark) return;
+  const sel = window.getSelection();
+  if (sel && !sel.isCollapsed) return;
+  removeHighlight(mark);
+});
+
+updateHighlighterButton();
+
+</script>
+</body>
+</html>

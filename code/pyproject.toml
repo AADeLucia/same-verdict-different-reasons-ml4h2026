@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "medscore-completeness"
+version = "0.1.0"
+description = "Toolkit for evaluating medical generative AI outputs (completeness, readability, personalization)"
+requires-python = ">=3.10"
+dependencies = [
+    "openai>=1.0",
+    "datasets>=2.0",
+    "sentence-transformers>=2.0",
+    "scikit-learn",
+    "pandas",
+    "numpy",
+    "jsonlines",
+    "tqdm",
+    "pyyaml",
+    "tiktoken",
+    "langid",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["medscore_completeness*"]

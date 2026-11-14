@@ -1,0 +1,33 @@
+name: medic-complete
+channels:
+  - defaults
+dependencies:
+  - python=3.12.12
+  - pip=25.3
+  - pip:
+      # LLM Judge API clients and datasets
+      - openai==2.9.0
+      - datasets==4.4.2
+      - tiktoken==0.9.0
+      - jsonlines==2.0.0
+      - pyyaml==6.0.3
+      - python-dotenv==1.2.1
+      - tqdm==4.67.1
+      - langid==1.1.6
+      # Criteria retrieval for the Criteria-Checklist grader
+      - sentence-transformers==5.1.2
+      - transformers==4.57.3
+      # Install a torch build matching your platform; CPU is sufficient for the
+      # all-MiniLM-L6-v2 embeddings used here (judges are served over an API).
+      - torch
+      # Analysis and figures (notebooks/analysis.py)
+      - marimo==0.20.4
+      - pandas==2.3.3
+      - numpy==2.3.3
+      - scipy==1.16.3
+      - scikit-learn==1.7.2
+      - matplotlib==3.10.7
+      - seaborn==0.13.2
+      - simpledorff==0.0.2
+      - krippendorff==0.8.2
+      - xlsxwriter==3.2.9

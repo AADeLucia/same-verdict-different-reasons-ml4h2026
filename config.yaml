@@ -1,0 +1,54 @@
+# Grader configuration for the experiments reported in the paper.
+# Values tagged !env are read from the environment (see .env.example).
+#
+# Metric key                          Paper name
+# ----------------------------------  ------------------------------------
+# completeness-medexpert-fss          Omission-Harm Rubric (few-shot)
+# completeness-medexpert              Omission-Harm Rubric (zero-shot, appendix)
+# completeness-icl-healthbench        Criteria-Checklist
+# completeness-medexpert-prometheus   Omission-Harm Rubric, Prometheus prompt format
+# completeness-human                  Clinician annotation (read from dataset metadata)
+
+graders:
+  completeness-medexpert-fss:
+    model_name: !env MODEL
+    model_server: !env SERVER
+    api_key: !env GRADER_API_KEY
+    max_concurrent_requests: !env BATCH_SIZE
+    temperature: !env DECODING_TEMPERATURE
+    max_completion_tokens: !env MAX_TOKENS
+
+  completeness-medexpert:
+    model_name: !env MODEL
+    model_server: !env SERVER
+    api_key: !env GRADER_API_KEY
+    max_concurrent_requests: !env BATCH_SIZE
+    temperature: !env DECODING_TEMPERATURE
+    max_completion_tokens: !env MAX_TOKENS
+
+  completeness-icl-healthbench:
+    model_name: !env MODEL
+    model_server: !env SERVER
+    api_key: !env GRADER_API_KEY
+    num_examples: 2
+    similarity_model: all-MiniLM-L6-v2
+    cache_embeddings: true
+    cache_dir: !env CACHE_DIR
+    max_concurrent_requests: !env BATCH_SIZE
+    temperature: !env DECODING_TEMPERATURE
+    max_completion_tokens: !env MAX_TOKENS
+
+  completeness-medexpert-prometheus:
+    model_name: !env MODEL
+    model_server: !env SERVER
+    api_key: !env GRADER_API_KEY
+    max_concurrent_requests: !env BATCH_SIZE
+    temperature: !env DECODING_TEMPERATURE
+    max_completion_tokens: !env MAX_TOKENS
+
+  completeness-human:
+    model_name: !env MODEL
+    model_server: !env SERVER
+    api_key: !env GRADER_API_KEY
+    temperature: !env DECODING_TEMPERATURE
+    max_completion_tokens: !env MAX_TOKENS
